@@ -1,0 +1,47 @@
+services:
+
+  ollama:
+    volumes:
+      - ollama:/root/.ollama
+    container_name: ollama
+    network_mode: host
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    network_mode: host
+    environment:
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434
+    volumes:
+      - open-webui:/app/backend/data
+    restart: unless-stopped
+    depends_on:
+      - ollama
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8888:80"
+      - "443:443"
+    environment:
+      - ssl_cert_path=${ssl_cert_path}
+      - ssl_cert_key_path=${ssl_cert_key_path}
+      - server_name=${server_name}
+    volumes:
+      - ./conf.d:/etc/nginx/conf.d
+      - ./ssl:/etc/nginx/ssl
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - open-webui
+
+volumes:
+  open-webui:
+  ollama:
